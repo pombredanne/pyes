@@ -4,7 +4,7 @@
 Array Type
 ==========
 
-JSON documents allow to define an array (list) of fields or objects. Mapping array types could not be simpler since arrays gets automatically detected and mapping them can be done either with :ref:`Core Types <es-guide-reference-core_types>`  or :ref:`Object Type <es-guide-reference-object_type>`  mappings. For example, the following JSON defines several arrays:
+JSON documents allow to define an array (list) of fields or objects. Mapping array types could not be simpler since arrays gets automatically detected and mapping them can be done either with :ref:`Core Types <es-guide-reference-mapping-core-types>`  or :ref:`Object Type <es-guide-reference-mapping-object-type>`  mappings. For example, the following JSON defines several arrays:
 
 
 .. code-block:: js
@@ -50,7 +50,7 @@ The above JSON has the **tags** property defining a list of a simple **string** 
     }
 
 
-The fact that array types are automatically support can be shown by the fact that the following JSON document is perfectly fine:
+The fact that array types are automatically supported can be shown by the fact that the following JSON document is perfectly fine:
 
 
 .. code-block:: js

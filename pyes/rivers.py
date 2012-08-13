@@ -1,20 +1,16 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-__author__ = 'Alberto Paro'
-
-import logging
+from __future__ import absolute_import
 
 try:
+    # For Python < 2.6 or people using a newer version of simplejson
+    import simplejson
+
+    json = simplejson
+except ImportError:
     # For Python >= 2.6
     import json
-except ImportError:
-    # For Python < 2.6 or people using a newer version of simplejson
-    import simplejson as json
 
-from es import ESJsonEncoder
-
-log = logging.getLogger('pyes')
+from .es import ES
 
 class River(object):
     def __init__(self, index_name=None, index_type=None, bulk_size=100, bulk_timeout=None):
@@ -46,7 +42,11 @@ class River(object):
         return str(self.q)
 
     def to_json(self):
-        return json.dumps(self.q, cls=ESJsonEncoder)
+        return json.dumps(self.q, cls=ES.encoder)
+
+    def serialize(self):
+        raise NotImplementedError
+
 
 class RabbitMQRiver(River):
     type = "rabbitmq"
@@ -66,55 +66,95 @@ class RabbitMQRiver(River):
 
     def serialize(self):
         return {
-                "type" : self.type,
-                self.type : {
-                    "host" : self.host,
-                    "port" : self.port,
-                    "user" : self.user,
-                    "pass" : self.password,
-                    "vhost" : self.vhost,
-                    "queue" : self.queue,
-                    "exchange" : self.exchange,
-                    "routing_key" : self.routing_key
-                }
+            "type": self.type,
+            self.type: {
+                "host": self.host,
+                "port": self.port,
+                "user": self.user,
+                "pass": self.password,
+                "vhost": self.vhost,
+                "queue": self.queue,
+                "exchange": self.exchange,
+                "routing_key": self.routing_key
             }
+        }
 
 
 class TwitterRiver(River):
     type = "twitter"
 
-    def __init__(self, user, password, **kwargs):
-        super(TwitterRiver, self).__init__(**kwargs)
+    def __init__(self, user=None, password=None, **kwargs):
         self.user = user
         self.password = password
-
+        self.consumer_key = kwargs.pop('consumer_key', None)
+        self.consumer_secret = kwargs.pop('consumer_secret', None)
+        self.access_token = kwargs.pop('access_token', None)
+        self.access_token_secret = kwargs.pop('access_token_secret', None)
+        # These filters may be lists or comma-separated strings of values
+        self.tracks = kwargs.pop('tracks', None)
+        self.follow = kwargs.pop('follow', None)
+        self.locations = kwargs.pop('locations', None)
+        super(TwitterRiver, self).__init__(**kwargs)
 
     def serialize(self):
-        return {
-                "type" : self.type,
-                self.type : {
-                    "user" : self.user,
-                    "password" : self.password,
-                }
+        result = {"type": self.type}
+        if self.user and self.password:
+            result[self.type] = {"user": self.user,
+                       "password": self.password}
+        elif (self.consumer_key and self.consumer_secret and self.access_token
+              and self.access_token_secret):
+            result[self.type] = {"oauth": {
+                "consumer_key": self.consumer_key,
+                "consumer_secret": self.consumer_secret,
+                "access_token": self.access_token,
+                "access_token_secret": self.access_token_secret,
             }
+            }
+        else:
+            raise ValueError("Twitter river requires authentication by username/password or OAuth")
+        filter = {}
+        if self.tracks:
+            filter['tracks'] = self.tracks
+        if self.follow:
+            filter['follow'] = self.follow
+        if self.locations:
+            filter['locations'] = self.locations
+        if filter:
+            result[self.type]['filter'] = filter
+        return result
 
 class CouchDBRiver(River):
     type = "couchdb"
 
-    def __init__(self, host="localhost", port=5984, db="mydb", filter=None, **kwargs):
+    def __init__(self, host="localhost", port=5984, db="mydb", filter=None,
+                 filter_params=None, script=None, user=None, password=None,
+                 **kwargs):
         super(CouchDBRiver, self).__init__(**kwargs)
         self.host = host
         self.port = port
         self.db = db
         self.filter = filter
+        self.filter_params = filter_params
+        self.script = script
+        self.user = user
+        self.password = password
 
     def serialize(self):
-        return {
-                "type" : self.type,
-                self.type : {
-                    "host" : self.host,
-                    "port" : self.port,
-                    "db" : self.db,
-                    "filter" : self.filter,
+        result = {
+            "type": self.type,
+            self.type: {
+                "host": self.host,
+                "port": self.port,
+                "db": self.db,
+                "filter": self.filter,
                 }
-            }
+        }
+        if self.filter_params is not None:
+            result[self.type]["filter_params"] = self.filter_params
+        if self.script is not None:
+            result[self.type]["script"] = self.script
+        if self.user is not None:
+            result[self.type]["user"] = self.user
+        if self.password is not None:
+            result[self.type]["password"] = self.password
+        return result

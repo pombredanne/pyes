@@ -1,4 +1,5 @@
 .. _es-guide-reference-api-search-index:
+.. _es-guide-reference-api-search:
 
 ======
 Search
@@ -28,6 +29,7 @@ In such a case, if we want to search only on the tweets for a specific user, we 
 .. code-block:: js
 
     $ curl -XGET 'http://localhost:9200/twitter/tweet/_search?routing=kimchy' -d '{
+        "query": {
             "filtered" : {
                 "query" : {
                     "query_string" : {
@@ -46,6 +48,21 @@ In such a case, if we want to search only on the tweets for a specific user, we 
 The routing parameter can be multi valued represented as a comma separated string. This will result in hitting the relevant shards where the routing values match to.
 
 
+Stats Groups
+============
+
+A search can be associated with stats groups, which maintains a statistics aggregation per group. It can later be retrieved using the indices stats API specifically. For example, here is a search body request that associate the request with two different groups:
+
+
+.. code-block:: js
+
+    {
+        "query" : {
+            "match_all" : {}
+        },
+        "stats" : ["group1", "group2"]
+    }
+
 .. toctree::
     :maxdepth: 1
 
@@ -58,7 +75,9 @@ The routing parameter can be multi valued represented as a comma separated strin
     index-boost
     indices-types
     named-filters
+    min-score
     query
+    preference
     request-body
     script-fields
     scroll

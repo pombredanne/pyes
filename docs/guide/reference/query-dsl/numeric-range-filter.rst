@@ -32,18 +32,18 @@ The numeric range filter works by loading all the relevant field values into mem
 The **numeric_range** filter top level parameters include:
 
 
-======================  ============================================================================
- Name                    Description                                                                
-======================  ============================================================================
- **from**                The lower bound. Defaults to start from the first.                         
- **to**                  The upper bound. Defaults to unbounded.                                    
- **from_inclusive**      Should the first from (if set) be inclusive or not. Defaults to **true**   
- **to_inclusive**        Should the last to (if set) be inclusive or not. Defaults to **true**.     
- **gt**                  Same as setting **from** and **from_inclusive** to **false**.              
- **gte**                 Same as setting **from** and **from_inclusive** to **true**.               
- **lt**                  Same as setting **to** and **to_inclusive** to **false**.                  
- **lte**                 Same as setting **to** and **to_inclusive** to **true**.                   
-======================  ============================================================================
+=====================  ============================================================================
+ Name                   Description                                                                
+=====================  ============================================================================
+ **from**               The lower bound. Defaults to start from the first.                         
+ **to**                 The upper bound. Defaults to unbounded.                                    
+ **include_lower**      Should the first from (if set) be inclusive or not. Defaults to **true**   
+ **include_upper**      Should the last to (if set) be inclusive or not. Defaults to **true**.     
+ **gt**                 Same as setting **from** and **include_lower** to **false**.               
+ **gte**                Same as setting **from** and **include_lower** to **true**.                
+ **lt**                 Same as setting **to** and **include_upper** to **false**.                 
+ **lte**                Same as setting **to** and **include_upper** to **true**.                  
+=====================  ============================================================================
 
 Caching
 =======
@@ -51,6 +51,6 @@ Caching
 The result of the filter is not cached by default. The **_cache** can be set to **true** to cache the *result* of the filter. This is handy when the same points parameters are used on several (many) other queries. Note, the process of caching the first execution is higher when caching (since it needs to satisfy different queries).
 
 
-If caching the *result* of the filter is desired (for example, using the same :ref:`teen" filter with ages between 10 and 20), then it is advisable to simply use the "range <es-guide-reference-range_filter>`  filter.
+If caching the *result* of the filter is desired (for example, using the same :ref:`teen" filter with ages between 10 and 20), then it is advisable to simply use the "range <es-guide-reference-query-dsl-range-filter>`  filter.
 
 

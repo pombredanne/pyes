@@ -14,7 +14,7 @@ The **more_like_this_field** query is the same as the **more_like_this** query, 
         "more_like_this_field" : {
             "name.first" : {
                 "like_text" : "text like this one",
-                "min_query_freq" : 1,
+                "min_term_freq" : 1,
                 "max_query_terms" : 12
             }
         }
@@ -42,4 +42,5 @@ The **more_like_this_field** top level parameters include:
 **max_word_len**              The maximum word length above which words will be ignored. Defaults to unbounded (**0**).                                                                                                                                                                                                                       
 **boost_terms**               Sets the boost factor to use when boosting terms. Defaults to **1**.                                                                                                                                                                                                                                            
 **boost**                     Sets the boost value of the query. Defaults to **1.0**.                                                                                                                                                                                                                                                         
+**analyzer**                  The analyzer that will be used to analyze the text. Defaults to the analyzer associated with the field.                                                                                                                                                                                                         
 ============================  ================================================================================================================================================================================================================================================================================================================

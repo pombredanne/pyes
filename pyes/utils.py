@@ -1,9 +1,8 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-__author__ = 'Alberto Paro'
-__all__ = ['clean_string', 'ResultSet', "ESRange", "ESRangeOp", "string_b64encode", "string_b64decode"]
+from __future__ import absolute_import
 import base64
+
+__all__ = ['clean_string', "ESRange", "ESRangeOp", "string_b64encode", "string_b64decode"]
 
 def string_b64encode(s):
     """
@@ -11,6 +10,7 @@ def string_b64encode(s):
     You can use it to generate an ID for urls or some texts
     """
     return base64.urlsafe_b64encode(s).strip('=')
+
 
 def string_b64decode(s):
     return base64.urlsafe_b64decode(s + '=' * (len(s) % 4))
@@ -22,23 +22,33 @@ SPECIAL_CHARS = [33, 34, 38, 40, 41, 42, 45, 58, 63, 91, 92, 93, 94, 123, 124, 1
 UNI_SPECIAL_CHARS = dict((c, None) for c in SPECIAL_CHARS)
 STR_SPECIAL_CHARS = ''.join([chr(c) for c in SPECIAL_CHARS])
 
-class ESRange(object):
+class EqualityComparableUsingAttributeDictionary(object):
+    """
+    Instances of classes inheriting from this class can be compared
+    using their attribute dictionary (__dict__). See GitHub issue
+    128 and http://stackoverflow.com/q/390640
+    """
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self == other
+
+
+class ESRange(EqualityComparableUsingAttributeDictionary):
     def __init__(self, field, from_value=None, to_value=None, include_lower=None,
                  include_upper=None, boost=None, **kwargs):
-        """
-        type can be "gt", "gte", "lt", "lte"
-        
-        """
         self.field = field
         self.from_value = from_value
         self.to_value = to_value
-        self.type = type
         self.include_lower = include_lower
         self.include_upper = include_upper
         self.boost = boost
 
     def serialize(self):
-
         filters = {}
         if self.from_value is not None:
             filters['from'] = self.from_value
@@ -51,6 +61,7 @@ class ESRange(object):
         if self.boost is not None:
             filters['boost'] = self.boost
         return self.field, filters
+
 
 class ESRangeOp(ESRange):
     def __init__(self, field, op, value, boost=None):
@@ -67,8 +78,9 @@ class ESRangeOp(ESRange):
         elif op == "lte":
             to_value = value
             include_upper = True
-        super(ESRangeOp, self).__init__(field, from_value, to_value, \
-                include_lower, include_upper, boost)
+        super(ESRangeOp, self).__init__(field, from_value, to_value,
+            include_lower, include_upper, boost)
+
 
 def clean_string(text):
     """
@@ -78,62 +90,6 @@ def clean_string(text):
         return text.translate(UNI_SPECIAL_CHARS).strip()
     return text.translate(None, STR_SPECIAL_CHARS).strip()
 
-class ResultSet(object):
-    def __init__(self, results, fix_keys=True, clean_highlight=True):
-        """
-        results: an es query results dict
-        fix_keys: remove the "_" from every key, useful for django views
-        clean_highlight: removed empty highlight
-        """
-        self._results = results
-        self._total = None
-        self.valid = False
-        self.facets = results.get('facets', {})
-        if 'hits' in results:
-            self.valid = True
-            self.results = results['hits']['hits']
-        if fix_keys:
-            self.fix_keys()
-        if clean_highlight:
-            self.clean_highlight()
-
-    @property
-    def total(self):
-        if self._total is None:
-            self._total = 0
-            if self.valid:
-                self._total = self._results.get("hits", {}).get('total', 0)
-        return self._total
-
-    def fix_keys(self):
-        """
-        Remove the _ from the keys of the results
-        """
-        if not self.valid:
-            return
-
-        for hit in self._results['hits']['hits']:
-            for key, item in hit.items():
-                if key.startswith("_"):
-                    hit[key[1:]] = item
-                    del hit[key]
-
-    def clean_highlight(self):
-        """
-        Remove the empty highlight
-        """
-        if not self.valid:
-            return
-
-        for hit in self._results['hits']['hits']:
-            if 'highlight' in hit:
-                hl = hit['highlight']
-                for key, item in hl.items():
-                    if not item:
-                        del hl[key]
-
-    def __getattr__(self, name):
-        return self._results['hits'][name]
 
 def keys_to_string(data):
     """

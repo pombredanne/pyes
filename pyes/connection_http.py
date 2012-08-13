@@ -1,207 +1,133 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-__author__ = 'Alberto Paro'
-
-"""
-Work taken from pycassa
-"""
-import logging
+from __future__ import absolute_import
+from . import logger
+from .exceptions import NoServerAvailable
+from .fakettypes import Method, RestResponse
+from time import time
+from urllib import urlencode
+from urlparse import urlparse
 import random
 import threading
-import time
-import urllib
-from pyes.exceptions import NoServerAvailable
 import urllib3
-import urllib
-from httplib import HTTPConnection
-from fakettypes import *
-import socket
-import sys
-__all__ = ['connect', 'connect_thread_local']
 
-DEFAULT_SERVER = '127.0.0.1:9200'
-#API_VERSION = VERSION.split('.')
+__all__ = ["connect"]
 
-log = logging.getLogger('pyes')
+DEFAULT_SERVER = ("http", "127.0.0.1", 9200)
+POOL_MANAGER = urllib3.PoolManager()
 
-class TimeoutHttpConnectionPool(urllib3.HTTPConnectionPool):
-    def _new_conn(self):
-        """
-        Return a fresh HTTPConnection with timeout passed
-        """
-        self.num_connections += 1
-        log.info("Starting new HTTP connection (%d): %s" % (self.num_connections, self.host))
-        if sys.version_info < (2, 6):
-            return HTTPConnection(host=self.host, port=int(self.port))
-        return HTTPConnection(host=self.host, port=self.port, timeout=self.timeout)
-        
 
-class ClientTransport(object):
-    """Encapsulation of a client session."""
+class Connection(object):
+    """An ElasticSearch connection to a randomly chosen server of the list.
 
-    def __init__(self, server, framed_transport, timeout, recycle):
-        host, port = server.split(":")
-        self.client = TimeoutHttpConnectionPool(host, port, timeout)
-        setattr(self.client, "execute", self.execute)
-        if recycle:
-            self.recycle = time.time() + recycle + random.uniform(0, recycle * 0.1)
-        else:
-            self.recycle = None
-
-    def execute(self, request):
-        """
-        Execute a request and return a response
-        """
-        uri = request.uri
-        if request.parameters:
-            uri += '?' + urllib.urlencode(request.parameters)
-        response = self.client.urlopen(Method._VALUES_TO_NAMES[request.method], uri, body=request.body, headers=request.headers)    
-        return RestResponse(status=response.status, body=response.data, headers=response.headers)
-
-def connect(servers=None, framed_transport=False, timeout=None,
-            retry_time=60, recycle=None, round_robin=None, max_retries=3):
-    """
-    Constructs a single ElastiSearch connection. Connects to a randomly chosen
-    server on the list.
-
-    If the connection fails, it will attempt to connect to each server on the
-    list in turn until one succeeds. If it is unable to find an active server,
-    it will throw a NoServerAvailable exception.
+    If the connection fails, it attempts to connect to another random server
+    of the list until one succeeds. If it is unable to find an active server,
+    it throws a NoServerAvailable exception.
 
     Failing servers are kept on a separate list and eventually retried, no
     sooner than `retry_time` seconds after failure.
 
     Parameters
     ----------
-    servers : [server]
-              List of ES servers with format: "hostname:port"
 
-              Default: ['127.0.0.1:9200']
-    framed_transport: bool
-              If True, use a TFramedTransport instead of a TBufferedTransport
-    timeout: float
-              Timeout in seconds (e.g. 0.5)
+    servers: List of ES servers represented as (`scheme`, `hostname`, `port`)
+             tuples. Default: [("http", "127.0.0.1", 9200)]
 
-              Default: None (it will stall forever)
-    retry_time: float
-              Minimum time in seconds until a failed server is reinstated. (e.g. 0.5)
+    retry_time: Minimum time in seconds until a failed server is reinstated.
+                Default: 60
 
-              Default: 60
-    recycle: float
-              Max time in seconds before an open connection is closed and returned to the pool.
+    max_retries: Max number of attempts to connect to some server.
 
-              Default: None (Never recycle)
-    max_retries: int
-              Max retry time on connection down              
+    timeout: Timeout in seconds. Default: None (wait forever)
 
-    round_robin: bool
-              *DEPRECATED*
-
-    Returns
-    -------
-    ES client
+    basic_auth: Use HTTP Basic Auth. A (`username`, `password`) tuple or a dict
+                with `username` and `password` keys.
     """
 
-    if servers is None:
-        servers = [DEFAULT_SERVER]
-    return ThreadLocalConnection(servers, framed_transport, timeout,
-                                 retry_time, recycle, max_retries=max_retries)
-
-connect_thread_local = connect
-
-
-class ServerSet(object):
-    """Automatically balanced set of servers.
-       Manages a separate stack of failed servers, and automatic
-       retrial."""
-
-    def __init__(self, servers, retry_time=10):
-        self._lock = threading.RLock()
-        self._servers = list(servers)
+    def __init__(self, servers=None, retry_time=60, max_retries=3, timeout=None,
+                 basic_auth=None):
+        if servers is None:
+            servers = [DEFAULT_SERVER]
+        self._active_servers = [server.geturl() for server in servers]
+        self._inactive_servers = []
         self._retry_time = retry_time
-        self._dead = []
-        
-    def get(self):
-        self._lock.acquire()
-        try:
-            if self._dead:
-                ts, revived = self._dead.pop()
-                if ts > time.time():  # Not yet, put it back
-                    self._dead.append((ts, revived))
-                else:
-                    self._servers.append(revived)
-                    log.info('Server %r reinstated into working pool', revived)
-            if not self._servers:
-                log.critical('No servers available')
-                raise NoServerAvailable()
-            return random.choice(self._servers)
-        finally:
-            self._lock.release()
-
-    def mark_dead(self, server):
-        self._lock.acquire()
-        try:
-            self._servers.remove(server)
-            self._dead.insert(0, (time.time() + self._retry_time, server))
-        finally:
-            self._lock.release()
-
-
-class ThreadLocalConnection(object):
-    def __init__(self, servers, framed_transport=False, timeout=None,
-                 retry_time=10, recycle=None, max_retries=3):
-        self._servers = ServerSet(servers, retry_time)
-        self._framed_transport = framed_transport #not used in http
-        self._timeout = timeout
-        self._recycle = recycle
         self._max_retries = max_retries
+        self._timeout = timeout
+        if basic_auth:
+            self._headers = urllib3.make_headers(basic_auth="%(username)s:%(password)s" % basic_auth)
+        else:
+            self._headers = {}
+        self._lock = threading.RLock()
         self._local = threading.local()
 
-    def __getattr__(self, attr):
-        def _client_call(*args, **kwargs):
+    def execute(self, request):
+        """Execute a request and return a response"""
+        url = request.uri
+        if request.parameters:
+            url += '?' + urlencode(request.parameters)
 
-            for retry in xrange(self._max_retries+1):
-                try:
-                    conn = self._ensure_connection()
-                    return getattr(conn.client, attr)(*args, **kwargs)
-                except (socket.timeout, socket.error), exc:
-                    log.exception('Client error: %s', exc)
-                    self.close()
+        if request.headers:
+            headers = dict(self._headers, **request.headers)
+        else:
+            headers = self._headers
 
-                    if retry < self._max_retries:
-                        continue
+        kwargs = dict(
+            method=Method._VALUES_TO_NAMES[request.method],
+            url=url,
+            body=request.body,
+            headers=headers,
+            timeout=self._timeout,
+        )
 
-                    raise urllib3.MaxRetryError
-
-        setattr(self, attr, _client_call)
-        return getattr(self, attr)
-
-    def _ensure_connection(self):
-        """Make certain we have a valid connection and return it."""
-        conn = self.connect()
-        if conn.recycle and conn.recycle < time.time():
-            log.debug('Client session expired after %is. Recycling.', self._recycle)
-            self.close()
-            conn = self.connect()
-        return conn
-
-    def connect(self):
-        """Create new connection unless we already have one."""
-        if not getattr(self._local, 'conn', None):
+        retry = 0
+        server = getattr(self._local, "server", None)
+        while True:
+            if not server:
+                self._local.server = server = self._get_server()
             try:
-                server = self._servers.get()
-                log.debug('Connecting to %s', server)
-                self._local.conn = ClientTransport(server, self._framed_transport,
-                                                   self._timeout, self._recycle)
-            except (socket.timeout, socket.error):
-                log.warning('Connection to %s failed.', server)
-                self._servers.mark_dead(server)
-                return self.connect()
-        return self._local.conn
+                parse_result = urlparse(server)
+                conn = POOL_MANAGER.connection_from_host(parse_result.hostname,
+                                                         parse_result.port,
+                                                         parse_result.scheme)
+                response = conn.urlopen(**kwargs)
+                return RestResponse(status=response.status,
+                                    body=response.data,
+                                    headers=response.headers)
+            except urllib3.exceptions.HTTPError:
+                self._drop_server(server)
+                self._local.server = server = None
+                if retry >= self._max_retries:
+                    logger.error("Client error: bailing out after %d failed retries",
+                                 self._max_retries, exc_info=1)
+                    raise NoServerAvailable
+                logger.exception("Client error: %d retries left", self._max_retries - retry)
+                retry += 1
 
-    def close(self):
-        """If a connection is open, close it."""
-#        if self._local.conn:
-#            self._local.conn.transport.close()
-        self._local.conn = None
+    def _get_server(self):
+        with self._lock:
+            try:
+                ts, server = self._inactive_servers.pop()
+            except IndexError:
+                pass
+            else:
+                if ts > time():  # Not yet, put it back
+                    self._inactive_servers.append((ts, server))
+                else:
+                    self._active_servers.append(server)
+                    logger.info("Restored server %s into active pool", server)
+
+            try:
+                return random.choice(self._active_servers)
+            except IndexError:
+                raise NoServerAvailable
+
+    def _drop_server(self, server):
+        with self._lock:
+            try:
+                self._active_servers.remove(server)
+            except ValueError:
+                pass
+            else:
+                self._inactive_servers.insert(0, (time() + self._retry_time, server))
+                logger.warning("Removed server %s from active pool", server)
+
+connect = Connection

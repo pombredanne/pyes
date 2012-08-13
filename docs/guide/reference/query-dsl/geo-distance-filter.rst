@@ -147,12 +147,13 @@ Options
 
 The following are options allowed on the filter:
 
-===================  ================================================================================================================================================================================================================================
- Option               Description                                                                                                                                                                                                                    
-===================  ================================================================================================================================================================================================================================
-**distance**         The distance to include hits in the filter. The distance can be a numeric value, and then the **distance_unit** (either **mi**/**miles** or **km** can be set) controlling the unit. Or a single string with the unit as well.  
-**distance_type**    How to compute the distance. Can either be **arc** (better precision) or **plane** (faster). Defaults to **arc**.                                                                                                               
-===================  ================================================================================================================================================================================================================================
+===================  ===================================================================================================================================================================================================================================================================================================================
+ Option               Description                                                                                                                                                                                                                                                                                                       
+===================  ===================================================================================================================================================================================================================================================================================================================
+**distance**         The distance to include hits in the filter. The distance can be a numeric value, and then the **distance_unit** (either **mi**/**miles** or **km** can be set) controlling the unit. Or a single string with the unit as well.                                                                                     
+**distance_type**    How to compute the distance. Can either be **arc** (better precision) or **plane** (faster). Defaults to **arc**.                                                                                                                                                                                                  
+**optimize_bbox**    Will an optimization of using first a bounding box check will be used. Defaults to **memory** which will do in memory checks. Can also have values of **indexed** to use indexed value check (make sure the **geo_point** type index lat lon in this case), or **none** which disables bounding box optimization.  
+===================  ===================================================================================================================================================================================================================================================================================================================
 
 geo_point Type
 ==============
@@ -169,5 +170,5 @@ The **geo_distance** filter can work with multiple locations / points per docume
 Caching
 =======
 
-The result of the filter is not cached by default. The `_cache` can be set to `true` to cache the *result* of the filter. This is handy when the same point and distance parameters are used on several (many) other queries. Note, the process of caching the first execution is higher when caching (since it needs to satisfy different queries).
+The result of the filter is not cached by default. The **_cache** can be set to **true** to cache the *result* of the filter. This is handy when the same point and distance parameters are used on several (many) other queries. Note, the process of caching the first execution is higher when caching (since it needs to satisfy different queries).
 

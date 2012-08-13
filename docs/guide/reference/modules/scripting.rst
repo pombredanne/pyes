@@ -10,7 +10,7 @@ The scripting module allows to use scripts in order to evaluate custom expressio
 The scripting module uses by default `mvel <http://mvel.codehaus.org/>`_  as the scripting language with some extensions. mvel is used since its extremely fast and very simple to use, and in most cases, simple expressions are needed (for example, mathematical equations).
 
 
-Additional **lang** plugins are provided to allow to execute scripts in different languages. Currently supported plugins are **lang-javascript** for JavaScript, **lang-groovy** for Groovy, and **lang-python** for Python. All places where a `script` parameter can be used, a **lang** parameter (on the same level) can be provided to define the language of the script. The **lang** options are **js**, **groovy**, **python**, and **mvel**.
+Additional **lang** plugins are provided to allow to execute scripts in different languages. Currently supported plugins are **lang-javascript** for JavaScript, **lang-groovy** for Groovy, and **lang-python** for Python. All places where a `script` parameter can be used, a **lang** parameter (on the same level) can be provided to define the language of the script. The **lang** options are **mvel**, **js**, **groovy**, **python**, and **native**.
 
 
 Default Scripting Language
@@ -28,6 +28,24 @@ Scripts can always be provided as part of the relevant API, but they can also be
 The name of the script is derived from the hierarchy of directories it exists under, and the file name without the lang extension. For example, a script placed under `config/scripts/group1/group2/test.py` will be named `group1_group2_test`.
 
 
+Native (Java) Scripts
+=====================
+
+Even though **mvel** is pretty fast, allow to register native Java based scripts for faster execution.
+
+
+In order to allow for scripts, the **NativeScriptFactory** needs to be implemented that constructs the script that will be executed. There are two main types, one that extends **AbstractExecutableScript** and one that extends **AbstractSearchScript** (probably the one most users will extend, with additional helper classes in **AbstractLongSearchScript**, **AbstractDoubleSearchScript**, and **AbstractFloatSearchScript**).
+
+
+Registering them can either be done by settings, for example: **script.native.my.type** set to **sample.MyNativeScriptFactory** will register a script named **my**. Another option is in a plugin, access **ScriptModule** and call **registerScript** on it.
+
+
+Executing the script is done by specifying the **lang** as **native**, and the name of the script as the **script**.
+
+
+Note, the scripts need to be in the classpath of elasticsearch. One simple way to do it is to create a directory under plugins (choose a descriptive name), and place the jar / classes files there, they will be automatically loaded.
+
+
 Score
 =====
 
@@ -43,27 +61,27 @@ Most scripting revolve around the use of specific document fields data. The **do
 The following data can be extracted from a field:
 
 
-====================================================  =====================================================================================================================================================================================================================================================================
- Expression                                            Description                                                                                                                                                                                                                                                         
-====================================================  =====================================================================================================================================================================================================================================================================
-**doc['field_name'].value**                           The native value of the field. For example, if its a short type, it will be short.                                                                                                                                                                                   
-**doc['field_name'].values**                          The native array values of the field. For example, if its a short type, it will be short[]. Remember, a field can have several values within a single doc. Returns an empty array if the field has no values.                                                        
-**doc['field_name'].stringValue**                     The string value of the field.                                                                                                                                                                                                                                       
-**doc['field_name'].doubleValue**                     The converted double of the field. Replace `double` with `int`, `long`, `float`, `short`, `byte` for the respective values.                                                                                                                                          
-**doc['field_name'].doubleValues**                    A converted double values array.                                                                                                                                                                                                                                     
-**doc['field_name'].date**                             Applies only to date / long (timestamp) types, returns a `MutableDateTime <http://joda-time.sourceforge.net/api-release/org/joda/time/MutableDateTime.html>`_  `_  allowing to get date / time specific data. For example: **doc['field_name'].date.minuteOfHour**  
-**doc['field_name'].dates**                           Return an array of date values for the field.                                                                                                                                                                                                                        
-**doc['field_name'].empty**                           A boolean indicating if the field has no values within the doc.                                                                                                                                                                                                      
-**doc['field_name'].multiValued**                     A boolean indicating that the field has several values within the corpus.                                                                                                                                                                                            
-**doc['field_name'].latValue**                        The latitude of a geo point type.                                                                                                                                                                                                                                    
-**doc['field_name'].lonValue**                        The longitude of a geo point type.                                                                                                                                                                                                                                   
-**doc['field_name'].latValues**                       The latitudes of a geo point type.                                                                                                                                                                                                                                   
-**doc['field_name'].lonValues**                       The longitudes of a geo point type.                                                                                                                                                                                                                                  
-**doc['field_name'].distance(lat, lon)**              The distance (in miles) of this geo point field from the provided lat/lon.                                                                                                                                                                                           
-**doc['field_name'].distanceInKm(lat, lon)**          The distance (in km) of this geo point field from the provided lat/lon.                                                                                                                                                                                              
-**doc['field_name'].geohashDistance(geohash)**        The distance (in miles) of this geo point field from the provided geohash.                                                                                                                                                                                           
-**doc['field_name'].geohashDistanceInKm(geohash)**    The distance (in km) of this geo point field from the provided geohash.                                                                                                                                                                                              
-====================================================  =====================================================================================================================================================================================================================================================================
+====================================================  =================================================================================================================================================================================================================================================================
+ Expression                                            Description                                                                                                                                                                                                                                                     
+====================================================  =================================================================================================================================================================================================================================================================
+**doc['field_name'].value**                           The native value of the field. For example, if its a short type, it will be short.                                                                                                                                                                               
+**doc['field_name'].values**                          The native array values of the field. For example, if its a short type, it will be short[]. Remember, a field can have several values within a single doc. Returns an empty array if the field has no values.                                                    
+**doc['field_name'].stringValue**                     The string value of the field.                                                                                                                                                                                                                                   
+**doc['field_name'].doubleValue**                     The converted double of the field. Replace `double` with `int`, `long`, `float`, `short`, `byte` for the respective values.                                                                                                                                      
+**doc['field_name'].doubleValues**                    A converted double values array.                                                                                                                                                                                                                                 
+**doc['field_name'].date**                             Applies only to date / long (timestamp) types, returns a `MutableDateTime <http://joda-time.sourceforge.net/api-release/org/joda/time/MutableDateTime.html>`_  allowing to get date / time specific data. For example: **doc['field_name'].date.minuteOfHour**  
+**doc['field_name'].dates**                           Return an array of date values for the field.                                                                                                                                                                                                                    
+**doc['field_name'].empty**                           A boolean indicating if the field has no values within the doc.                                                                                                                                                                                                  
+**doc['field_name'].multiValued**                     A boolean indicating that the field has several values within the corpus.                                                                                                                                                                                        
+**doc['field_name'].lat**                             The latitude of a geo point type.                                                                                                                                                                                                                                
+**doc['field_name'].lon**                             The longitude of a geo point type.                                                                                                                                                                                                                               
+**doc['field_name'].lats**                            The latitudes of a geo point type.                                                                                                                                                                                                                               
+**doc['field_name'].lons**                            The longitudes of a geo point type.                                                                                                                                                                                                                              
+**doc['field_name'].distance(lat, lon)**              The distance (in miles) of this geo point field from the provided lat/lon.                                                                                                                                                                                       
+**doc['field_name'].distanceInKm(lat, lon)**          The distance (in km) of this geo point field from the provided lat/lon.                                                                                                                                                                                          
+**doc['field_name'].geohashDistance(geohash)**        The distance (in miles) of this geo point field from the provided geohash.                                                                                                                                                                                       
+**doc['field_name'].geohashDistanceInKm(geohash)**    The distance (in km) of this geo point field from the provided geohash.                                                                                                                                                                                          
+====================================================  =================================================================================================================================================================================================================================================================
 
 Stored Fields
 =============
@@ -86,7 +104,7 @@ There are several built in functions that can be used within scripts. They inclu
 ===========================  =================================================================================================================================================
  Function                     Description                                                                                                                                     
 ===========================  =================================================================================================================================================
-**time**                     The current time in milliseconds.                                                                                                                
+**time()**                   The current time in milliseconds.                                                                                                                
 **sin(a)**                   Returns the trigonometric sine of an angle.                                                                                                      
 **cos(a)**                   Returns the trigonometric cosine of an angle.                                                                                                    
 **tan(a)**                   Returns the trigonometric tangent of an angle.                                                                                                   

@@ -3,15 +3,16 @@
 #
 # DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
 #
+from __future__ import absolute_import
 
 from thrift.Thrift import *
-from ttypes import *
+from .ttypes import *
 from thrift.Thrift import TProcessor
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol, TProtocol
 try:
   from thrift.protocol import fastbinary
-except:
+except ImportError:
   fastbinary = None
 
 
@@ -47,7 +48,7 @@ class Client(Iface):
     self._oprot.writeMessageEnd()
     self._oprot.trans.flush()
 
-  def recv_execute(self, ):
+  def recv_execute(self):
     (fname, mtype, rseqid) = self._iprot.readMessageBegin()
     if mtype == TMessageType.EXCEPTION:
       x = TApplicationException()
@@ -108,7 +109,7 @@ class execute_args:
     (1, TType.STRUCT, 'request', (RestRequest, RestRequest.thrift_spec), None, ), # 1
   )
 
-  def __init__(self, request=None,):
+  def __init__(self, request=None):
     self.request = request
 
   def read(self, iprot):
@@ -169,7 +170,7 @@ class execute_result:
     (0, TType.STRUCT, 'success', (RestResponse, RestResponse.thrift_spec), None, ), # 0
   )
 
-  def __init__(self, success=None,):
+  def __init__(self, success=None):
     self.success = success
 
   def read(self, iprot):

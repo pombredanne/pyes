@@ -20,11 +20,11 @@ The TCP transport is an implementation of the transport module using TCP. It all
  Setting                              Description                                                                           
 ===================================  =======================================================================================
 **transport.tcp.port**               A bind port range. Defaults to **9300-9400**.                                          
-**transport.tcp.connect_timeout**    The socket connect timeout setting (in time setting format). Defaults to **30s**.      
+**transport.tcp.connect_timeout**    The socket connect timeout setting (in time setting format). Defaults to **2s**.       
 **transport.tcp.compress**           Set to **true** to enable compression (LZF) between all nodes. Defaults to **false**.  
 ===================================  =======================================================================================
 
-It also shares the uses the common :ref:`network settings <es-guide-reference-modules-node-network>`.  
+It also shares the uses the common :ref:`network settings <es-guide-reference-modules-network>`.  
 
 Local Transport
 ===============

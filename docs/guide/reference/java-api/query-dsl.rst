@@ -4,14 +4,14 @@
 Query Dsl
 =========
 
-elasticsearch provides a full Java query dsl in a similar manner to the REST :ref:`Query DSL <es-guide-reference-java-api-guide-reference-query-dsl>`.  The factory for query builders is **QueryBuilders** and the factory for filter builders is **FilterBuilders**. Here is an example:
+elasticsearch provides a full Java query dsl in a similar manner to the REST :ref:`Query DSL <es-guide-reference-query-dsl>`.  The factory for query builders is **QueryBuilders** and the factory for filter builders is **FilterBuilders**. Here is an example:
 
 
 .. code-block:: java
 
 
-    import static org.elasticsearch.index.query.xcontent.FilterBuilders.*;
-    import static org.elasticsearch.index.query.xcontent.QueryBuilders.*;
+    import static org.elasticsearch.index.query.FilterBuilders.*;
+    import static org.elasticsearch.index.query.QueryBuilders.*;
     
     QueryBuilder qb1 = termQuery("name", "kimchy");
     
