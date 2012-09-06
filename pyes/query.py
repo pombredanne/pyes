@@ -87,8 +87,8 @@ class Search(EqualityComparableUsingAttributeDictionary):
         """
         fields: if is [], the _source is not returned
         """
-        from .facets import FacetFactory
         if not index_boost: index_boost = {}
+        from .facets import FacetFactory
         self.query = query
         self.filter = filter
         self.fields = fields or []
@@ -1078,7 +1078,7 @@ class StringQuery(Query):
             if not isinstance(self.default_field, (str, unicode)) and isinstance(self.default_field, list):
                 if not self.use_dis_max:
                     filters["use_dis_max"] = self.use_dis_max
-                if self.tie_breaker:
+                if self.tie_breaker != 0:
                     filters["tie_breaker"] = self.tie_breaker
 
         if self.default_operator != "OR":
